@@ -1,0 +1,46 @@
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
+let clients = {};
+
+io.on('connection', (socket) => {
+  console.log('A user connected');
+
+  // Register the user with their user ID
+  socket.on('register', (userId) => {
+    clients[userId] = socket;
+    console.log(`User ${userId} registered`);
+  });
+
+  // Handle sending messages to a specific user
+  socket.on('message', (data) => {
+    const { to, from, message } = data;
+    const recipientSocket = clients[to];
+    if (recipientSocket) {
+      recipientSocket.emit('message', { from, message });
+      console.log(`Message from ${from} to ${to}: ${message}`);
+    } else {
+      console.log(`User ${to} not connected`);
+    }
+  });
+
+  // Handle disconnection
+  socket.on('disconnect', () => {
+    for (const userId in clients) {
+      if (clients[userId] === socket) {
+        delete clients[userId];
+        break;
+      }
+    }
+    console.log('A user disconnected');
+  });
+});
+
+server.listen(8080, () => {
+  console.log('Server is listening on port 8080');
+});
